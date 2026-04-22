@@ -1,289 +1,18 @@
 <!DOCTYPE html>
-<!-- หน้าแรก (Home Page) — แสดงโลโก้ + ปุ่มเริ่ม + หน้า Idle -->
 <html lang="th">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>CCE UDRU — Smart Navigation Robot</title>
 
-    <!-- Fonts: Orbitron = หัวข้อ sci-fi, Exo 2 = ข้อความทั่วไป -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;500;600;700&family=Orbitron:wght@400;500;600;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-    <style>
-        /* ── ตัวแปรสีส่วนกลาง — แก้สีที่นี่ที่เดียว ──────────── */
-        :root {
-            --cyan:   #00E5FF;
-            --gold:   #FFCC00;
-            --blue:   #004A99;
-            --green:  #00FF88;
-            --black:  #000000;
-            --dark:   #0A0E1A;
-            --card:   #0D1526;
-            --border: rgba(0,229,255,0.15);
-            --muted:  rgba(255,255,255,0.45);
-            --ease:   cubic-bezier(0.16,1,0.3,1); /* spring easing */
-        }
-
-        /* ── Reset ── */
-        *, *::before, *::after {
-            box-sizing: border-box;
-            margin: 0; padding: 0;
-            -webkit-tap-highlight-color: transparent;
-            touch-action: manipulation; /* ลด tap delay 300ms */
-            user-select: none;
-        }
-
-        html, body {
-            width: 100%; height: 100%;
-            background: #000000 !important;
-            color: #fff;
-            font-family: 'Exo 2', sans-serif;
-            overflow: hidden;
-            color-scheme: dark;
-        }
-
-        /* ── Canvas: JavaScript วาด particle บนนี้ — อยู่ชั้นล่างสุด ── */
-        #canvas { position: fixed; inset: 0; z-index: 0; display: block; }
-
-        /* ── Grid: เส้นตารางพื้นหลังสีฟ้าจาง ── */
-        .grid {
-            position: fixed; inset: 0; z-index: 1; pointer-events: none;
-            background-image:
-                linear-gradient(rgba(0,229,255,0.03) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(0,229,255,0.03) 1px, transparent 1px);
-            background-size: 48px 48px;
-        }
-
-        /* ── Scanline: เส้นแสงวิ่งจากบนลงล่าง (HUD aesthetic) ── */
-        .scan {
-            position: fixed; left: 0; right: 0; height: 1px; z-index: 2;
-            pointer-events: none;
-            background: linear-gradient(90deg, transparent, rgba(0,229,255,0.18) 50%, transparent);
-            animation: scan 9s linear infinite;
-        }
-        @keyframes scan { 0%{top:-2px} 100%{top:100vh} }
-
-        /* ── Corner Brackets: วงเล็บ 4 มุม
-           ::before = เส้นแนวตั้ง, ::after = เส้นแนวนอน ── */
-        .br { position: fixed; z-index: 3; width: 44px; height: 44px; pointer-events: none; }
-        .br::before, .br::after { content:''; position:absolute; background:var(--cyan); opacity:.5; }
-        .br::before { width:2px; height:26px; }
-        .br::after  { width:26px; height:2px; }
-        .br.tl{top:20px;left:20px}    .br.tl::before{top:0;left:0}    .br.tl::after{top:0;left:0}
-        .br.tr{top:20px;right:20px}   .br.tr::before{top:0;right:0}   .br.tr::after{top:0;right:0}
-        .br.bl{bottom:20px;left:20px} .br.bl::before{bottom:0;left:0} .br.bl::after{bottom:0;left:0}
-        .br.br2{bottom:20px;right:20px} .br.br2::before{bottom:0;right:0} .br.br2::after{bottom:0;right:0}
-
-        /* ── ปุ่ม Fullscreen ── */
-        .fsbtn {
-            position: fixed; top: 18px; right: 18px; z-index: 20;
-            width: 44px; height: 44px; border-radius: 10px;
-            background: rgba(255,255,255,0.04);
-            border: 1px solid var(--border);
-            color: var(--muted); cursor: pointer;
-            display: flex; align-items: center; justify-content: center;
-            transition: .2s; backdrop-filter: blur(8px);
-        }
-        .fsbtn:hover { background: rgba(0,229,255,0.08); color: var(--cyan); border-color: rgba(0,229,255,.3); }
-
-        /* ── Main Layout: จัดทุก element ตรงกลางหน้าจอ ── */
-        .main {
-            position: fixed; inset: 0; z-index: 10;
-            display: flex; flex-direction: column;
-            align-items: center; justify-content: center;
-            gap: clamp(12px, 2vh, 24px);
-            padding: 24px; overflow: hidden;
-        }
-
-        /* ── Logo Wrapper: กรอบครอบโลโก้ + วงแหวน
-           ต้องกำหนดขนาดตายตัว ไม่งั้นรูปล้นออกมา ── */
-        .logo-wrap {
-            width: clamp(120px, 16vw, 175px);
-            height: clamp(120px, 16vw, 175px);
-            flex-shrink: 0; position: relative;
-        }
-
-        /* วงแหวนหมุน 3 วง — แต่ละวงหมุนคนละความเร็วและทิศทาง */
-        .ring { position: absolute; border-radius: 50%; border: 2px solid transparent; pointer-events: none; }
-        .ring-a { inset:-8px;  border-top-color:var(--cyan);  border-right-color:rgba(0,229,255,.35); animation:rot 10s linear infinite; box-shadow:0 0 8px rgba(0,229,255,.15); }
-        .ring-b { inset:6px;   border-bottom-color:var(--gold); border-left-color:rgba(255,204,0,.35); animation:rot 7s linear infinite reverse; box-shadow:0 0 8px rgba(255,204,0,.12); }
-        .ring-c { inset:20px;  border-top-color:rgba(0,229,255,.45); border-left-color:rgba(0,229,255,.15); animation:rot 16s linear infinite; }
-        @keyframes rot { to { transform: rotate(360deg); } }
-
-        /* รูปโลโก้ — inset:0 ทำให้ยึดขอบทั้ง 4 ด้านของ logo-wrap */
-        .logo-img {
-            position: absolute; inset: 0;
-            width: 100%; height: 100%;
-            border-radius: 50%; object-fit: cover;
-            background: var(--card);
-            border: 3px solid rgba(0,74,153,0.7);
-            box-shadow: 0 0 0 1px rgba(0,229,255,0.1), 0 0 24px rgba(0,74,153,0.4);
-            display: block;
-        }
-
-        /* ── ชื่อและ subtitle ── */
-        .text-block { text-align: center; flex-shrink: 0; }
-
-        /* gradient text + shimmer animation */
-        .brand {
-            display: block;
-            font-family: 'Orbitron', monospace; font-weight: 900;
-            font-size: clamp(1.8rem, 5.5vw, 4.5rem);
-            letter-spacing: 5px; line-height: 1;
-            background: linear-gradient(135deg, #fff 0%, var(--cyan) 40%, var(--gold) 70%, #fff 100%);
-            background-size: 300% auto;
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            animation: shimmer 5s linear infinite;
-            filter: drop-shadow(0 0 10px rgba(0,229,255,0.2));
-        }
-        @keyframes shimmer { to { background-position: 300% center; } }
-
-        .sub-th {
-            display: block;
-            font-size: clamp(0.8rem, 2vw, 1.05rem); font-weight: 600;
-            color: var(--gold); text-shadow: 0 0 10px rgba(255,204,0,.3);
-            letter-spacing: 1.5px; margin-top: 8px;
-        }
-        .sub-en {
-            display: block;
-            font-size: clamp(0.6rem, 1.4vw, 0.75rem); font-weight: 300;
-            color: var(--muted); letter-spacing: 3px;
-            text-transform: uppercase; margin-top: 4px;
-        }
-
-        /* ── Status Pills ── */
-        .pills { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; flex-shrink: 0; }
-        .pill {
-            display: flex; align-items: center; gap: 8px;
-            padding: 10px 16px; min-height: 44px;
-            background: rgba(255,255,255,0.04);
-            border: 1px solid var(--border); border-radius: 100px;
-            font-size: clamp(0.68rem, 1.4vw, 0.78rem); font-weight: 500;
-            color: rgba(255,255,255,0.6); backdrop-filter: blur(8px);
-        }
-        .dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; animation:dp 2s ease-in-out infinite; }
-        .dot.g { background:var(--green); box-shadow:0 0 6px var(--green); }
-        .dot.y { background:var(--gold);  box-shadow:0 0 6px var(--gold); animation-delay:.5s; }
-        @keyframes dp { 0%,100%{opacity:1} 50%{opacity:.2} }
-
-        /* ── CTA Button: ปุ่มหลัก — ::before คือแสง shine วิ่งผ่านตอน hover ── */
-        .cta {
-            position: relative; overflow: hidden;
-            display: inline-flex; align-items: center; gap: 12px;
-            padding: clamp(14px,2vh,20px) clamp(32px,5vw,64px);
-            min-height: 52px;
-            font-family: 'Orbitron', monospace;
-            font-size: clamp(0.85rem, 2vw, 1.2rem); font-weight: 700; letter-spacing: 2px;
-            color: #000; background: var(--gold);
-            border: none; border-radius: 100px; cursor: pointer; flex-shrink: 0;
-            transition: transform .2s var(--ease), box-shadow .25s var(--ease);
-        }
-        .cta::before {
-            content: ''; position: absolute; inset: 0; border-radius: inherit;
-            background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,.28) 50%, transparent 70%);
-            background-size: 200% 100%; background-position: -100% 0;
-            transition: background-position .5s var(--ease);
-        }
-        .cta:hover::before { background-position: 200% 0; }
-        .cta:hover { transform: translateY(-4px); box-shadow: 0 0 28px rgba(255,204,0,.35), 0 10px 24px rgba(0,0,0,.5); }
-        .cta:active { transform: scale(0.95); }
-        .cta:disabled { opacity: .7; pointer-events: none; }
-        .cta-ic {
-            width:26px; height:26px; border-radius:50%;
-            background:rgba(0,0,0,.15);
-            display:flex; align-items:center; justify-content:center;
-            font-size:12px; flex-shrink:0;
-        }
-
-        /* ── Fade-up: animation ตอนโหลดหน้า — stagger ทีละ element ── */
-        .fu { opacity:0; transform:translateY(20px); animation:fu .7s var(--ease) forwards; }
-        @keyframes fu { to { opacity:1; transform:translateY(0); } }
-        .d0{animation-delay:.05s} .d1{animation-delay:.18s}
-        .d2{animation-delay:.31s} .d3{animation-delay:.44s}
-
-        /* ปิด animation ถ้าผู้ใช้ตั้งค่า reduced motion */
-        @media (prefers-reduced-motion: reduce) {
-            *, *::before, *::after { animation-duration:.001ms !important; transition-duration:.001ms !important; }
-        }
-
-        /* ── Idle Screen: ซ่อนอยู่ แสดงเมื่อ JS เพิ่ม class "active" ── */
-        .idle {
-            position: fixed; inset: 0; z-index: 100;
-            background: #000000; margin:-2px; padding:2px;
-            display: none; flex-direction: column;
-            align-items: center; justify-content: center; cursor: pointer;
-        }
-        .idle.active { display:flex; animation:fu .4s var(--ease) both; }
-
-        /* หุ่นยนต์ลอยขึ้นลง */
-        .robot { display:flex; flex-direction:column; align-items:center; animation:float 4s ease-in-out infinite alternate; }
-        @keyframes float { from{transform:translateY(0)} to{transform:translateY(-14px)} }
-
-        .r-head {
-            width:clamp(140px,20vw,190px); height:clamp(120px,17vw,162px);
-            background:linear-gradient(160deg,var(--card),#060E1B);
-            border:2px solid var(--cyan); border-radius:26px; position:relative;
-            display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px;
-            box-shadow:0 0 36px rgba(0,229,255,0.07), inset 0 0 28px rgba(0,0,0,.6);
-        }
-        /* ข้อความบนหน้าผาก */
-        .r-head::before {
-            content:'CCE · UDRU'; position:absolute; top:10px;
-            font-family:'Orbitron',monospace; font-size:.58rem; font-weight:700;
-            color:var(--gold); letter-spacing:3px; text-shadow:0 0 8px rgba(255,204,0,.4);
-        }
-
-        /* เสาอากาศ + ไฟกะพริบ */
-        .ant { position:absolute; top:-24px; width:3px; height:24px; background:linear-gradient(to top,var(--cyan),transparent); border-radius:2px; }
-        .ant::after {
-            content:''; position:absolute; top:-7px; left:-5px;
-            width:13px; height:13px; border-radius:50%;
-            background:var(--gold); box-shadow:0 0 10px var(--gold);
-            animation:ab 1.6s ease-in-out infinite;
-        }
-        @keyframes ab { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.1;transform:scale(.8)} }
-        .ant-l{left:34px; transform:rotate(-13deg); transform-origin:bottom;}
-        .ant-r{right:34px; transform:rotate(13deg);  transform-origin:bottom;}
-
-        /* ตา — กะพริบทุก 5 วินาที */
-        .r-eyes { display:flex; gap:clamp(18px,3.5vw,28px); }
-        .r-eye {
-            width:clamp(32px,4.5vw,42px); height:clamp(32px,4.5vw,42px); border-radius:50%;
-            background:radial-gradient(circle at 33% 33%, #c0f8ff, var(--cyan) 50%, #005577);
-            box-shadow:0 0 14px var(--cyan); position:relative;
-            animation:eb 5s ease-in-out infinite;
-        }
-        .r-eye::after { content:''; position:absolute; top:22%; left:22%; width:32%; height:32%; border-radius:50%; background:rgba(255,255,255,.7); }
-        @keyframes eb { 0%,42%,58%,100%{transform:scaleY(1)} 50%{transform:scaleY(.07)} }
-
-        /* ปาก equalizer — 5 แท่ง กระดิกไปมา */
-        .r-mouth { display:flex; gap:5px; align-items:flex-end; }
-        .r-bar { width:7px; border-radius:3px 3px 0 0; background:var(--cyan); box-shadow:0 0 6px rgba(0,229,255,.4); animation:eq .9s ease-in-out infinite alternate; }
-        .r-bar:nth-child(1){height:6px;  animation-delay:0s}
-        .r-bar:nth-child(2){height:13px; animation-delay:.12s}
-        .r-bar:nth-child(3){height:20px; animation-delay:.24s}
-        .r-bar:nth-child(4){height:13px; animation-delay:.36s}
-        .r-bar:nth-child(5){height:6px;  animation-delay:.48s}
-        @keyframes eq { from{transform:scaleY(.3);opacity:.4} to{transform:scaleY(1);opacity:1} }
-
-        .r-neck { width:34px; height:11px; background:var(--card); border-left:2px solid rgba(0,229,255,.2); border-right:2px solid rgba(0,229,255,.2); }
-        .r-body { width:clamp(105px,15vw,140px); height:clamp(55px,8vw,78px); background:linear-gradient(160deg,var(--card),#060E1B); border:2px solid rgba(0,229,255,.25); border-radius:16px; display:flex; align-items:center; justify-content:center; }
-
-        /* ไฟกลางอก กะพริบสว่างสลัว */
-        .chest { width:20px; height:20px; border-radius:50%; background:radial-gradient(circle,#fff 0%,var(--gold) 55%); box-shadow:0 0 16px var(--gold); animation:cp 2.2s ease-in-out infinite; }
-        @keyframes cp { 0%,100%{transform:scale(1);box-shadow:0 0 16px var(--gold)} 50%{transform:scale(1.2);box-shadow:0 0 30px var(--gold),0 0 45px rgba(255,204,0,.25)} }
-
-        .idle-title { font-family:'Orbitron',monospace; font-weight:700; font-size:clamp(.95rem,2.5vw,1.35rem); color:var(--gold); letter-spacing:5px; text-shadow:0 0 10px rgba(255,204,0,.35); margin-top:26px; }
-        .idle-hint  { font-size:clamp(.72rem,1.6vw,.88rem); font-weight:300; color:rgba(0,229,255,.38); letter-spacing:1.5px; margin-top:10px; animation:breathe 3s ease-in-out infinite; }
-        @keyframes breathe { 0%,100%{opacity:.3} 50%{opacity:.9} }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
 </head>
 <body>
 
-    <!-- พื้นหลัง -->
     <canvas id="canvas"></canvas>
     <div class="grid"></div>
     <div class="scan"></div>
@@ -296,26 +25,20 @@
         <i class="fas fa-expand-arrows-alt" aria-hidden="true"></i>
     </button>
 
-    <!-- หน้าหลัก -->
     <main class="main" role="main">
-
-        <!-- โลโก้ + วงแหวน -->
         <div class="logo-wrap fu d0" aria-hidden="true">
             <div class="ring ring-a"></div>
             <div class="ring ring-b"></div>
             <div class="ring ring-c"></div>
-            <!-- onerror: ถ้าโหลดรูปไม่ได้ให้ซ่อนแทน แสดง broken icon -->
             <img src="/static/images/comengi.jpg" alt="CCE UDRU" class="logo-img" onerror="this.style.opacity='0'">
         </div>
 
-        <!-- ชื่อ -->
         <div class="text-block fu d1">
             <span class="brand">UDRU ROBOT</span>
             <span class="sub-th">วิศวกรรมคอมพิวเตอร์และการสื่อสาร</span>
             <span class="sub-en">Udon Thani Rajabhat University</span>
         </div>
 
-        <!-- สถานะระบบ -->
         <div class="pills fu d2" role="status" aria-live="polite">
             <div class="pill">
                 <span class="dot g" aria-hidden="true"></span>
@@ -327,15 +50,13 @@
             </div>
         </div>
 
-        <!-- ปุ่มหลัก -->
         <button class="cta fu d3" onclick="goToRooms()" aria-label="เลือกห้องเรียน">
             <span class="cta-ic" aria-hidden="true"><i class="fas fa-map-location-dot"></i></span>
             เลือกห้องเรียน
         </button>
-
     </main>
 
-    <!-- หน้า Idle — แสดงเมื่อไม่มีการใช้งาน 30 วินาที, แตะใดก็ได้เพื่อกลับ -->
+    <!-- Idle Screen -->
     <div id="idle" class="idle" role="button" aria-label="แตะเพื่อเริ่มต้น" tabindex="0">
         <div class="grid" style="opacity:.5"></div>
         <div class="scan"></div>
@@ -363,88 +84,6 @@
         <p class="idle-hint">แตะหน้าจอเพื่อเริ่มต้น</p>
     </div>
 
-    <script>
-    // ── Particle Background ──────────────────────────────────────────
-    // วาดจุดลอยไปมา + เส้นเชื่อมถ้าจุดอยู่ใกล้กัน (Canvas API)
-    (function () {
-        const c = document.getElementById('canvas');
-        const ctx = c.getContext('2d');
-        let W, H, pts = [];
-
-        function resize() { W = c.width = innerWidth; H = c.height = innerHeight; }
-        addEventListener('resize', resize); resize();
-
-        class P {
-            constructor() { this.reset(); }
-            reset() {
-                this.x = Math.random() * W; this.y = Math.random() * H;
-                this.vx = (Math.random() - .5) * .3; this.vy = (Math.random() - .5) * .3;
-                this.r = Math.random() * 1.2 + .4; this.a = Math.random() * .35 + .07;
-            }
-            step() {
-                this.x += this.vx; this.y += this.vy;
-                if (this.x < 0 || this.x > W || this.y < 0 || this.y > H) this.reset();
-            }
-            draw() {
-                ctx.beginPath(); ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
-                ctx.fillStyle = `rgba(0,229,255,${this.a})`; ctx.fill();
-            }
-        }
-
-        for (let i = 0; i < 70; i++) pts.push(new P());
-
-        function loop() {
-            ctx.clearRect(0, 0, W, H);
-            const MAX = 100;
-            for (let i = 0; i < pts.length; i++) {
-                for (let j = i + 1; j < pts.length; j++) {
-                    const dx = pts[i].x - pts[j].x, dy = pts[i].y - pts[j].y;
-                    const d = Math.sqrt(dx*dx + dy*dy);
-                    if (d < MAX) {
-                        ctx.beginPath(); ctx.moveTo(pts[i].x, pts[i].y); ctx.lineTo(pts[j].x, pts[j].y);
-                        ctx.strokeStyle = `rgba(0,229,255,${.05 * (1 - d/MAX)})`; ctx.lineWidth = .5; ctx.stroke();
-                    }
-                }
-            }
-            pts.forEach(p => { p.step(); p.draw(); });
-            requestAnimationFrame(loop);
-        }
-        loop();
-    })();
-
-    // ── Idle Timer ───────────────────────────────────────────────────
-    // นับ 30 วิ ถ้าไม่มีการใช้งาน → แสดงหน้า idle
-    const IDLE_MS = 30000;
-    let idleTimer;
-    const idleEl = document.getElementById('idle');
-
-    function showIdle() { idleEl.classList.add('active'); }
-    function hideIdle() { idleEl.classList.remove('active'); }
-    function resetTimer() {
-        clearTimeout(idleTimer);
-        if (!idleEl.classList.contains('active')) idleTimer = setTimeout(showIdle, IDLE_MS);
-    }
-    function wakeUp(e) { if (e) e.stopPropagation(); hideIdle(); resetTimer(); }
-
-    idleEl.addEventListener('click', wakeUp);
-    idleEl.addEventListener('keydown', e => { if (e.key==='Enter'||e.key===' ') wakeUp(e); });
-    ['touchstart','mousedown','mousemove'].forEach(ev =>
-        document.addEventListener(ev, resetTimer, { passive:true, capture:true })
-    );
-    resetTimer();
-
-    // ── Navigation & Fullscreen ──────────────────────────────────────
-    function goToRooms() {
-        const btn = document.querySelector('.cta');
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin" style="font-size:1rem"></i> กำลังโหลด...';
-        setTimeout(() => { window.location.href = '/room'; }, 450);
-    }
-
-    function toggleFS() {
-        if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(()=>{});
-        else document.exitFullscreen();
-    }
-    </script>
+    <script src="{{ url_for('static', filename='js/index.js') }}"></script>
 </body>
 </html>

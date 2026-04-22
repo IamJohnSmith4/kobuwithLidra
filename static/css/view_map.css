@@ -1,0 +1,126 @@
+:root {
+    --cyan:   #00E5FF;
+    --gold:   #FFCC00;
+    --green:  #00FF88;
+    --red:    #FF5252;
+    --black:  #000000;
+    --card:   #0D1526;
+    --border: rgba(0,229,255,0.15);
+    --muted:  rgba(255,255,255,0.45);
+    --ease:   cubic-bezier(0.16,1,0.3,1);
+}
+
+*, *::before, *::after {
+    box-sizing: border-box; margin: 0; padding: 0;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation; user-select: none;
+}
+
+html, body {
+    width: 100%; height: 100%;
+    background: #000000 !important;
+    color: #fff; font-family: 'Exo 2', sans-serif;
+    overflow: hidden; color-scheme: dark;
+}
+
+.grid {
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background-image:
+        linear-gradient(rgba(0,229,255,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,229,255,0.025) 1px, transparent 1px);
+    background-size: 48px 48px;
+}
+
+.page {
+    position: fixed; inset: 0; z-index: 10;
+    display: flex; flex-direction: column;
+    padding: clamp(12px, 2vw, 20px);
+    gap: clamp(8px, 1.5vh, 14px);
+    overflow: hidden;
+}
+
+/* Header */
+.header { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+.back-btn {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 16px; min-height: 44px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border); border-radius: 100px;
+    color: var(--muted); font-family: 'Exo 2', sans-serif;
+    font-size: 0.85rem; font-weight: 500;
+    cursor: pointer; text-decoration: none;
+    transition: all 0.2s var(--ease);
+}
+.back-btn:hover { background: rgba(0,229,255,0.08); color: var(--cyan); border-color: rgba(0,229,255,.3); }
+
+.page-title {
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(0.9rem, 2.2vw, 1.4rem);
+    font-weight: 700; letter-spacing: 2px;
+    flex: 1; text-align: center;
+}
+.page-title span { color: var(--gold); text-shadow: 0 0 10px rgba(255,204,0,0.3); }
+
+/* Status bar */
+.status-bar {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    padding: 8px 16px; min-height: 40px;
+    background: rgba(0,229,255,0.04);
+    border: 1px solid var(--border); border-radius: 10px;
+    font-size: clamp(0.75rem, 1.5vw, 0.85rem);
+    color: var(--cyan); flex-shrink: 0;
+}
+.live-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--green); box-shadow: 0 0 6px var(--green);
+    flex-shrink: 0; animation: ldp 1.5s ease-in-out infinite;
+}
+@keyframes ldp { 0%,100%{opacity:1} 50%{opacity:.2} }
+
+/* Map container */
+.map-wrap {
+    flex: 1; min-height: 0;
+    background: rgba(13,21,38,0.7);
+    border: 2px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+}
+#floor-map { width: 100%; height: 100%; max-width: 100%; max-height: 100%; }
+
+/* Room SVG interactions */
+.room { cursor: pointer; transition: opacity 0.2s; }
+.room:hover .room-fill { opacity: 0.9; }
+.room:active .room-fill { opacity: 0.7; }
+#robot-marker { transition: all 1.2s var(--ease); }
+
+/* Legend */
+.legend {
+    display: flex; gap: clamp(10px,2vw,20px);
+    justify-content: center; align-items: center;
+    flex-wrap: wrap; flex-shrink: 0;
+}
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: clamp(0.62rem,1.2vw,0.72rem); color: var(--muted); }
+.legend-dot { width: 10px; height: 10px; border-radius: 3px; }
+
+/* Controls */
+.controls { display: flex; gap: 10px; justify-content: center; flex-shrink: 0; }
+.btn {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 20px; min-height: 44px;
+    border-radius: 100px; cursor: pointer;
+    font-family: 'Exo 2', sans-serif;
+    font-size: clamp(0.8rem,1.6vw,0.9rem); font-weight: 600;
+    border: 2px solid transparent; transition: all 0.2s var(--ease);
+    text-decoration: none;
+}
+.btn-back { background: rgba(0,229,255,0.06); border-color: rgba(0,229,255,0.3); color: var(--cyan); }
+.btn-back:hover { background: rgba(0,229,255,0.15); border-color: var(--cyan); }
+.btn-cancel { background: rgba(255,82,82,0.08); border-color: rgba(255,82,82,0.4); color: #ff8a80; }
+.btn-cancel:hover { background: rgba(255,82,82,0.18); border-color: var(--red); }
+.btn:active { transform: scale(0.95); }
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; }
+}

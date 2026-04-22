@@ -1,451 +1,19 @@
 <!DOCTYPE html>
-<!--
-    ╔══════════════════════════════════════════════════════════════╗
-    ║         หน้าเลือกห้อง (Room Selection) — UDRU CCE Robot     ║
-    ║                                                              ║
-    ║  หน้านี้แสดงห้องทั้งหมดในอาคาร EN ชั้น 13                 ║
-    ║  ผู้ใช้แตะเลือกห้อง → ส่งคำสั่งไปหุ่นยนต์ → ไปหน้านำทาง  ║
-    ║                                                              ║
-    ║  สีแบ่งตาม department:                                      ║
-    ║   🔵 ฟ้า (cce)    = สาขา CCE                               ║
-    ║   🔴 แดง (el)     = สาขา EL                                ║
-    ║   🟢 เขียว (office) = สำนักงาน / ห้องพักอาจารย์            ║
-    ║   🟡 ทอง (tools)  = ห้องวัสดุอุปกรณ์                       ║
-    ╚══════════════════════════════════════════════════════════════╝
--->
 <html lang="th">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>เลือกห้องปลายทาง — UDRU CCE Robot</title>
 
-    <!-- Font เดียวกับ index.html เพื่อความ consistent -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;500;600;700&family=Orbitron:wght@400;600;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
-    <style>
-        /* ══════════════════════════════════════════════════════
-           CSS Variables — ใช้ชุดเดียวกับ index.html ทั้งหมด
-        ══════════════════════════════════════════════════════ */
-        :root {
-            --cyan:    #00E5FF;
-            --gold:    #FFCC00;
-            --blue:    #004A99;
-            --green:   #00FF88;
-            --red:     #FF3D00;
-            --black:   #000000;
-            --dark:    #0A0E1A;
-            --card:    #0D1526;
-            --border:  rgba(0,229,255,0.12);
-            --muted:   rgba(255,255,255,0.45);
-            --ease:    cubic-bezier(0.16,1,0.3,1);
-
-            /* สีประจำแต่ละ department */
-            --col-cce:    #00E5FF;  /* ฟ้า = CCE */
-            --col-el:     #FF3D00;  /* แดง = EL */
-            --col-office: #00FF88;  /* เขียว = สำนักงาน */
-            --col-tools:  #FFCC00;  /* ทอง = วัสดุ */
-        }
-
-        *, *::before, *::after {
-            box-sizing: border-box; margin: 0; padding: 0;
-            -webkit-tap-highlight-color: transparent;
-            touch-action: manipulation;
-            user-select: none;
-        }
-
-        html, body {
-            width: 100%; height: 100%;
-            background: #000000 !important;
-            color: #fff;
-            font-family: 'Exo 2', sans-serif;
-            overflow: hidden;
-            color-scheme: dark;
-        }
-
-        /* ══════════════════════════════════════════════════════
-           พื้นหลัง — Grid + Scanline (เหมือน index.html)
-        ══════════════════════════════════════════════════════ */
-        .grid {
-            position: fixed; inset: 0; z-index: 0; pointer-events: none;
-            background-image:
-                linear-gradient(rgba(0,229,255,0.025) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(0,229,255,0.025) 1px, transparent 1px);
-            background-size: 48px 48px;
-        }
-        .scan {
-            position: fixed; left: 0; right: 0; height: 1px; z-index: 1; pointer-events: none;
-            background: linear-gradient(90deg, transparent, rgba(0,229,255,0.15) 50%, transparent);
-            animation: scan 9s linear infinite;
-        }
-        @keyframes scan { 0%{top:-2px} 100%{top:100vh} }
-
-        /* วงเล็บมุม 4 มุม */
-        .br { position: fixed; z-index: 2; width: 44px; height: 44px; pointer-events: none; }
-        .br::before, .br::after { content:''; position:absolute; background:var(--cyan); opacity:.4; }
-        .br::before { width:2px; height:26px; }
-        .br::after  { width:26px; height:2px; }
-        .br.tl{top:20px;left:20px}    .br.tl::before{top:0;left:0}    .br.tl::after{top:0;left:0}
-        .br.tr{top:20px;right:20px}   .br.tr::before{top:0;right:0}   .br.tr::after{top:0;right:0}
-        .br.bl{bottom:20px;left:20px} .br.bl::before{bottom:0;left:0} .br.bl::after{bottom:0;left:0}
-        .br.br2{bottom:20px;right:20px} .br.br2::before{bottom:0;right:0} .br.br2::after{bottom:0;right:0}
-
-        /* ══════════════════════════════════════════════════════
-           LAYOUT หลัก — แบ่งเป็น Header + Grid + Footer
-        ══════════════════════════════════════════════════════ */
-        .page {
-            position: fixed; inset: 0; z-index: 10;
-            display: flex; flex-direction: column;
-            padding: clamp(16px, 3vw, 32px);
-            gap: clamp(12px, 2vh, 20px);
-            overflow: hidden;
-        }
-
-        /* ══════════════════════════════════════════════════════
-           HEADER — ส่วนบนสุด แสดงชื่อหน้าและ status
-        ══════════════════════════════════════════════════════ */
-        .header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-shrink: 0;
-            gap: 12px;
-        }
-
-        /* ปุ่มกลับหน้าแรก */
-        .back-btn {
-            display: flex; align-items: center; gap: 8px;
-            padding: 10px 18px; min-height: 44px;
-            background: rgba(255,255,255,0.04);
-            border: 1px solid var(--border);
-            border-radius: 100px;
-            color: var(--muted); font-family: 'Exo 2', sans-serif;
-            font-size: 0.85rem; font-weight: 500;
-            cursor: pointer; text-decoration: none;
-            transition: all 0.2s var(--ease);
-            backdrop-filter: blur(8px);
-        }
-        .back-btn:hover { background: rgba(255,82,82,0.1); color: #ff8a80; border-color: #ff5252; }
-
-        /* ชื่อหน้า */
-        .page-title {
-            font-family: 'Orbitron', monospace;
-            font-size: clamp(1rem, 2.5vw, 1.6rem);
-            font-weight: 700;
-            letter-spacing: 3px;
-            color: #fff;
-            text-align: center;
-            flex: 1; /* กินพื้นที่กลาง */
-        }
-        .page-title span {
-            color: var(--cyan);
-            text-shadow: 0 0 10px rgba(0,229,255,0.35);
-        }
-
-        /* ปุ่ม Fullscreen มุมขวาบน */
-        .fs-btn {
-            width: 44px; height: 44px; border-radius: 10px;
-            background: rgba(255,255,255,0.04);
-            border: 1px solid var(--border);
-            color: var(--muted); cursor: pointer;
-            display: flex; align-items: center; justify-content: center;
-            transition: .2s; backdrop-filter: blur(8px);
-            flex-shrink: 0;
-        }
-        .fs-btn:hover { background: rgba(0,229,255,0.08); color: var(--cyan); border-color: rgba(0,229,255,.3); }
-
-        /* ══════════════════════════════════════════════════════
-           STATUS BAR — แถบสถานะตรงกลาง
-           แสดงว่า "กรุณาเลือกห้อง" หรือ "กำลังนำทางไป..."
-        ══════════════════════════════════════════════════════ */
-        .status-bar {
-            display: flex; align-items: center; justify-content: center; gap: 10px;
-            padding: 10px 20px; min-height: 44px;
-            background: rgba(0,229,255,0.04);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            font-size: clamp(0.8rem, 1.8vw, 0.95rem);
-            font-weight: 500;
-            color: var(--cyan);
-            flex-shrink: 0;
-            transition: all 0.3s var(--ease);
-        }
-        /* dot กะพริบบน status bar */
-        .status-dot {
-            width: 8px; height: 8px; border-radius: 50%;
-            background: var(--cyan); box-shadow: 0 0 8px var(--cyan);
-            animation: sdp 2s ease-in-out infinite;
-            flex-shrink: 0;
-        }
-        @keyframes sdp { 0%,100%{opacity:1} 50%{opacity:.2} }
-
-        /* ══════════════════════════════════════════════════════
-           ROOM GRID — ตารางการ์ดห้องทั้งหมด
-           ใช้ CSS Grid auto-fill ปรับจำนวนคอลัมน์ตามความกว้าง
-        ══════════════════════════════════════════════════════ */
-        .grid-wrap {
-            flex: 1; /* กินพื้นที่ที่เหลือทั้งหมด */
-            overflow-y: auto;
-            overflow-x: hidden;
-            /* ซ่อน scrollbar แต่ยังเลื่อนได้ */
-            scrollbar-width: none;
-            -ms-overflow-style: none;
-            padding: 4px 2px; /* กัน card shadow ถูก clip */
-        }
-        .grid-wrap::-webkit-scrollbar { display: none; }
-
-        .rooms-grid {
-            display: grid;
-            /* auto-fill: ใส่ให้พอดีหน้าจอ, minmax: แต่ละ card กว้างอย่างน้อย 200px */
-            grid-template-columns: repeat(auto-fill, minmax(clamp(160px, 22vw, 240px), 1fr));
-            gap: clamp(10px, 2vw, 18px);
-        }
-
-        /* ══════════════════════════════════════════════════════
-           ROOM CARD — การ์ดแต่ละห้อง
-           แต่ละ card มี: ไอคอน + เลขห้อง + คำอธิบาย
-           สีแถบบนสุดบอก department
-        ══════════════════════════════════════════════════════ */
-        .room-card {
-            position: relative;
-            background: rgba(13,21,38,0.8); /* พื้นหลัง card สีน้ำเงินเข้ม */
-            border: 1px solid rgba(255,255,255,0.06);
-            border-radius: 20px;
-            padding: clamp(16px, 2.5vw, 24px) clamp(12px, 2vw, 20px);
-            cursor: pointer;
-            display: flex; flex-direction: column;
-            align-items: center; text-align: center;
-            gap: 10px;
-            /* min touch target 44px (UI/UX Pro Max §2) */
-            min-height: clamp(140px, 20vh, 180px);
-            overflow: hidden;
-            /* transition ทุก property 250ms แบบ spring */
-            transition: transform 0.25s var(--ease),
-                        box-shadow 0.25s var(--ease),
-                        border-color 0.25s var(--ease),
-                        background 0.25s var(--ease);
-            /* fade up ตอนโหลด */
-            opacity: 0;
-            transform: translateY(16px);
-            animation: cardIn 0.5s var(--ease) forwards;
-        }
-
-        /* แถบสีบนสุดของ card — บอก department */
-        .room-card::before {
-            content: '';
-            position: absolute; top: 0; left: 0; right: 0;
-            height: 3px;
-            border-radius: 20px 20px 0 0;
-            background: var(--accent-color); /* กำหนดผ่าน inline style */
-            box-shadow: 0 0 12px var(--accent-color);
-        }
-
-        /* แสงพื้นหลังจาง บน card ตอน hover */
-        .room-card::after {
-            content: '';
-            position: absolute; inset: 0; border-radius: inherit;
-            background: radial-gradient(circle at 50% 0%, var(--accent-color) 0%, transparent 60%);
-            opacity: 0;
-            transition: opacity 0.3s var(--ease);
-        }
-
-        /* Hover — ยกขึ้น + เรืองแสง */
-        .room-card:hover {
-            transform: translateY(-6px);
-            border-color: var(--accent-color);
-            box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px var(--accent-color);
-            background: rgba(13,21,38,0.95);
-        }
-        .room-card:hover::after { opacity: 0.06; }
-
-        /* กดแล้วยุบลง (scale press feedback) */
-        .room-card:active { transform: scale(0.95); }
-
-        /* animation โผล่ทีละใบ (stagger ด้วย animation-delay) */
-        @keyframes cardIn { to { opacity: 1; transform: translateY(0); } }
-        /* กำหนด delay แต่ละ card ด้วย nth-child */
-        .room-card:nth-child(1)  { animation-delay: .03s }
-        .room-card:nth-child(2)  { animation-delay: .07s }
-        .room-card:nth-child(3)  { animation-delay: .11s }
-        .room-card:nth-child(4)  { animation-delay: .15s }
-        .room-card:nth-child(5)  { animation-delay: .19s }
-        .room-card:nth-child(6)  { animation-delay: .23s }
-        .room-card:nth-child(7)  { animation-delay: .27s }
-        .room-card:nth-child(8)  { animation-delay: .31s }
-        .room-card:nth-child(9)  { animation-delay: .35s }
-
-        /* ══════════════════════════════════════════════════════
-           ส่วนประกอบภายใน card
-        ══════════════════════════════════════════════════════ */
-
-        /* วงกลมไอคอน */
-        .card-icon {
-            width: clamp(44px, 6vw, 56px);
-            height: clamp(44px, 6vw, 56px);
-            border-radius: 50%;
-            background: rgba(255,255,255,0.04);
-            border: 1px solid var(--accent-color);
-            display: flex; align-items: center; justify-content: center;
-            font-size: clamp(1.1rem, 2vw, 1.4rem);
-            color: var(--accent-color);
-            flex-shrink: 0;
-            box-shadow: 0 0 12px rgba(0,0,0,0.3);
-            transition: box-shadow 0.25s var(--ease);
-        }
-        .room-card:hover .card-icon {
-            box-shadow: 0 0 16px var(--accent-color);
-        }
-
-        /* เลขห้อง */
-        .card-number {
-            font-family: 'Orbitron', monospace;
-            font-size: clamp(1.4rem, 3vw, 2rem);
-            font-weight: 700;
-            color: var(--accent-color);
-            line-height: 1;
-            letter-spacing: 1px;
-        }
-
-        /* คำอธิบายห้อง */
-        .card-desc {
-            font-size: clamp(0.68rem, 1.3vw, 0.8rem);
-            font-weight: 400;
-            color: rgba(255,255,255,0.55);
-            line-height: 1.4;
-            /* ตัดข้อความถ้ายาวเกิน 2 บรรทัด */
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-        }
-
-        /* badge department เล็กๆ มุมขวาบน */
-        .card-badge {
-            position: absolute; top: 12px; right: 12px;
-            font-size: 0.6rem; font-weight: 600;
-            letter-spacing: 1px;
-            color: var(--accent-color);
-            background: rgba(0,0,0,0.4);
-            border: 1px solid var(--accent-color);
-            border-radius: 6px;
-            padding: 2px 6px;
-            opacity: 0.7;
-        }
-
-        /* ══════════════════════════════════════════════════════
-           สถานะ LOADING — ตอนกดเลือกห้องแล้วรอ
-           ทำให้ card ที่ไม่ได้เลือกจางลง
-           card ที่เลือกกะพริบ
-        ══════════════════════════════════════════════════════ */
-        .room-card.dimmed {
-            opacity: 0.2;
-            pointer-events: none; /* กดไม่ได้อีกต่อไป */
-            transform: translateY(0);
-        }
-        .room-card.selected {
-            opacity: 1 !important;
-            animation: pulse-card 0.8s ease-in-out infinite alternate;
-            pointer-events: none;
-        }
-        @keyframes pulse-card {
-            from { box-shadow: 0 0 10px var(--accent-color); }
-            to   { box-shadow: 0 0 30px var(--accent-color), 0 0 60px rgba(0,229,255,0.2); }
-        }
-
-        /* ══════════════════════════════════════════════════════
-           LEGEND — คำอธิบายสีแต่ละ department
-           แถบล่างสุดของหน้า
-        ══════════════════════════════════════════════════════ */
-        .legend {
-            display: flex; gap: clamp(10px, 2vw, 20px);
-            justify-content: center; align-items: center;
-            flex-wrap: wrap;
-            flex-shrink: 0;
-            padding: 8px 0;
-        }
-        .legend-item {
-            display: flex; align-items: center; gap: 6px;
-            font-size: clamp(0.65rem, 1.3vw, 0.75rem);
-            color: var(--muted);
-        }
-        .legend-dot {
-            width: 8px; height: 8px; border-radius: 50%;
-        }
-        .btn-reset-home {
-            position: relative;
-            background: rgba(255, 46, 99, 0.05); /* พื้นหลังสีแดงจางๆ */
-            border: 1px solid rgba(255, 46, 99, 0.5); /* เส้นขอบสีแดง */
-            color: #ff2e63; /* สีตัวอักษรสีแดง */
-            padding: 8px 16px;
-            font-family: 'Orbitron', sans-serif; /* ฟอนต์แนวล้ำยุค */
-            font-size: 12px;
-            letter-spacing: 1px;
-            border-radius: 4px;
-            cursor: pointer;
-            overflow: hidden;
-            transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
-            display: flex;
-            align-items: center;
-        }
-
-        .btn-reset-home .btn-content {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            z-index: 2;
-        }
-
-        /* เอฟเฟกต์เมื่อ Hover */
-        .btn-reset-home:hover {
-            background: rgba(255, 46, 99, 0.2);
-            box-shadow: 0 0 20px rgba(255, 46, 99, 0.4),
-                        inset 0 0 10px rgba(255, 46, 99, 0.2);
-            transform: translateY(-1px);
-            border-color: #ff2e63;
-        }
-
-        /* เอฟเฟกต์แสงวิ่ง (Shimmer) */
-        .btn-shimmer {
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(
-                90deg,
-                transparent,
-                rgba(255, 255, 255, 0.1),
-                transparent
-            );
-            transition: 0.5s;
-        }
-
-        .btn-reset-home:hover .btn-shimmer {
-            left: 100%;
-        }
-
-        .btn-reset-home:active {
-            transform: scale(0.95);
-        }
-
-        /* ══════════════════════════════════════════════════════
-           prefers-reduced-motion — ปิด animation ถ้าผู้ใช้ตั้งค่าไว้
-        ══════════════════════════════════════════════════════ */
-        @media (prefers-reduced-motion: reduce) {
-            *, *::before, *::after {
-                animation-duration: .001ms !important;
-                transition-duration: .001ms !important;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/room.css') }}">
 </head>
 <body>
 
-    <!-- พื้นหลัง -->
     <div class="grid"></div>
     <div class="scan"></div>
     <div class="br tl"></div>
@@ -453,19 +21,13 @@
     <div class="br bl"></div>
     <div class="br br2"></div>
 
-    <!-- ══ LAYOUT หลัก ══════════════════════════════════════════════ -->
     <div class="page">
 
-        <!-- HEADER -->
         <header class="header">
             <a href="/" class="back-btn">
                 <i class="fas fa-arrow-left"></i> <span>หน้าหลัก</span>
             </a>
-
-            <h1 class="page-title">
-                เลือก<span>ห้องปลายทาง</span>
-            </h1>
-
+            <h1 class="page-title">เลือก<span>ห้องปลายทาง</span></h1>
             <div class="control-actions" style="display: flex; gap: 10px; align-items: center;">
                 <button class="btn-reset-home" onclick="confirmResetHome()" aria-label="Reset System">
                     <div class="btn-content">
@@ -474,127 +36,103 @@
                     </div>
                     <div class="btn-shimmer"></div>
                 </button>
-
                 <button class="fs-btn" onclick="toggleFS()" aria-label="เต็มจอ">
                     <i class="fas fa-expand"></i>
                 </button>
             </div>
         </header>
 
-        <!-- STATUS BAR — อัปเดตด้วย JavaScript ตอนเลือกห้อง -->
         <div class="status-bar" id="status-bar" role="status" aria-live="polite">
             <div class="status-dot"></div>
             <span id="status-text">กรุณาเลือกห้องที่ต้องการให้หุ่นยนต์นำทาง</span>
         </div>
 
-        <!-- ROOM GRID — ตารางห้องทั้งหมด -->
         <div class="grid-wrap">
             <div class="rooms-grid" id="rooms-grid">
 
-                <!-- ห้อง 1301 — CCE (ฟ้า) -->
                 <div class="room-card" style="--accent-color: var(--col-cce)"
-                     onclick="selectRoom(this, '1301')" role="button" tabindex="0"
-                     aria-label="ห้อง 1301 ห้องปฏิบัติการคอมพิวเตอร์">
+                     onclick="selectRoom(this, '1301')" role="button" tabindex="0">
                     <span class="card-badge">CCE</span>
-                    <div class="card-icon"><i class="fas fa-microchip" aria-hidden="true"></i></div>
+                    <div class="card-icon"><i class="fas fa-microchip"></i></div>
                     <div class="card-number">1301</div>
                     <div class="card-desc">ห้องปฏิบัติการคอมพิวเตอร์และการจำลอง</div>
                 </div>
 
-                <!-- ห้อง 1302 — EL (แดง) -->
                 <div class="room-card" style="--accent-color: var(--col-el)"
-                     onclick="selectRoom(this, '1302')" role="button" tabindex="0"
-                     aria-label="ห้อง 1302 ห้องปฏิบัติการวงจรไฟฟ้า">
+                     onclick="selectRoom(this, '1302')" role="button" tabindex="0">
                     <span class="card-badge">EL</span>
-                    <div class="card-icon"><i class="fas fa-bolt" aria-hidden="true"></i></div>
+                    <div class="card-icon"><i class="fas fa-bolt"></i></div>
                     <div class="card-number">1302</div>
                     <div class="card-desc">ห้องปฏิบัติการวงจรไฟฟ้าและอิเล็กทรอนิกส์</div>
                 </div>
 
-                <!-- ห้อง 1303A — Office (เขียว) -->
                 <div class="room-card" style="--accent-color: var(--col-office)"
-                     onclick="selectRoom(this, '1303a')" role="button" tabindex="0"
-                     aria-label="ห้อง 1303A สำนักงานสาขา EL">
+                     onclick="selectRoom(this, '1303a')" role="button" tabindex="0">
                     <span class="card-badge">EL</span>
-                    <div class="card-icon"><i class="fas fa-building-user" aria-hidden="true"></i></div>
+                    <div class="card-icon"><i class="fas fa-building-user"></i></div>
                     <div class="card-number">1303<small style="font-size:.6em">A</small></div>
                     <div class="card-desc">สำนักงานสาขาวิศวกรรมอิเล็กทรอนิกส์</div>
                 </div>
 
-                <!-- ห้อง 1303B — EL (แดง) -->
                 <div class="room-card" style="--accent-color: var(--col-el)"
-                     onclick="selectRoom(this, '1303b')" role="button" tabindex="0"
-                     aria-label="ห้อง 1303B ศูนย์นวัตกรรมสมองกล">
+                     onclick="selectRoom(this, '1303b')" role="button" tabindex="0">
                     <span class="card-badge">EL</span>
-                    <div class="card-icon"><i class="fas fa-car-battery" aria-hidden="true"></i></div>
+                    <div class="card-icon"><i class="fas fa-car-battery"></i></div>
                     <div class="card-number">1303<small style="font-size:.6em">B</small></div>
                     <div class="card-desc">ศูนย์นวัตกรรมสมองกลและยานยนต์ไฟฟ้า</div>
                 </div>
 
-                <!-- ห้อง 1304A — CCE (ฟ้า) -->
                 <div class="room-card" style="--accent-color: var(--col-cce)"
-                     onclick="selectRoom(this, '1304a')" role="button" tabindex="0"
-                     aria-label="ห้อง 1304A ห้องปฏิบัติการเครือข่าย">
+                     onclick="selectRoom(this, '1304a')" role="button" tabindex="0">
                     <span class="card-badge">CCE</span>
-                    <div class="card-icon"><i class="fas fa-network-wired" aria-hidden="true"></i></div>
+                    <div class="card-icon"><i class="fas fa-network-wired"></i></div>
                     <div class="card-number">1304<small style="font-size:.6em">A</small></div>
                     <div class="card-desc">ห้องปฏิบัติการเครือข่ายและการสื่อสาร</div>
                 </div>
 
-                <!-- ห้อง 1304B — CCE (ฟ้า) -->
                 <div class="room-card" style="--accent-color: var(--col-cce)"
-                     onclick="selectRoom(this, '1304b')" role="button" tabindex="0"
-                     aria-label="ห้อง 1304B ห้องปฏิบัติการ AI">
+                     onclick="selectRoom(this, '1304b')" role="button" tabindex="0">
                     <span class="card-badge">CCE</span>
-                    <div class="card-icon"><i class="fas fa-brain" aria-hidden="true"></i></div>
+                    <div class="card-icon"><i class="fas fa-brain"></i></div>
                     <div class="card-number">1304<small style="font-size:.6em">B</small></div>
                     <div class="card-desc">ห้องปฏิบัติการคอมพิวเตอร์และปัญญาประดิษฐ์</div>
                 </div>
 
-                <!-- ห้อง 1305 — CCE (ฟ้า) -->
                 <div class="room-card" style="--accent-color: var(--col-cce)"
-                     onclick="selectRoom(this, '1305')" role="button" tabindex="0"
-                     aria-label="ห้อง 1305 ห้องปฏิบัติการการสื่อสารไร้สาย">
+                     onclick="selectRoom(this, '1305')" role="button" tabindex="0">
                     <span class="card-badge">CCE</span>
-                    <div class="card-icon"><i class="fas fa-wifi" aria-hidden="true"></i></div>
+                    <div class="card-icon"><i class="fas fa-wifi"></i></div>
                     <div class="card-number">1305</div>
                     <div class="card-desc">ห้องปฏิบัติการการสื่อสารและเครือข่ายไร้สาย</div>
                 </div>
 
-                <!-- ห้อง 1306 — Office (เขียว) -->
                 <div class="room-card" style="--accent-color: var(--col-office)"
-                     onclick="selectRoom(this, '1306')" role="button" tabindex="0"
-                     aria-label="ห้อง 1306 ห้องพักอาจารย์ CCE">
+                     onclick="selectRoom(this, '1306')" role="button" tabindex="0">
                     <span class="card-badge">CCE</span>
-                    <div class="card-icon"><i class="fas fa-user-tie" aria-hidden="true"></i></div>
+                    <div class="card-icon"><i class="fas fa-user-tie"></i></div>
                     <div class="card-number">1306</div>
                     <div class="card-desc">ห้องพักอาจารย์วิศวกรรมคอมพิวเตอร์และการสื่อสาร</div>
                 </div>
 
-                <!-- ห้อง 1307 — EL (แดง) -->
                 <div class="room-card" style="--accent-color: var(--col-el)"
-                     onclick="selectRoom(this, '1307')" role="button" tabindex="0"
-                     aria-label="ห้อง 1307 ห้องปฏิบัติการหุ่นยนต์">
+                     onclick="selectRoom(this, '1307')" role="button" tabindex="0">
                     <span class="card-badge">EL</span>
-                    <div class="card-icon"><i class="fas fa-robot" aria-hidden="true"></i></div>
+                    <div class="card-icon"><i class="fas fa-robot"></i></div>
                     <div class="card-number">1307</div>
                     <div class="card-desc">ห้องปฏิบัติการวิศวกรรมการผลิตและหุ่นยนต์</div>
                 </div>
 
-                <!-- ห้อง 1308 — Tools (ทอง) -->
                 <div class="room-card" style="--accent-color: var(--col-tools)"
-                     onclick="selectRoom(this, '1308')" role="button" tabindex="0"
-                     aria-label="ห้อง 1308 ห้องวัสดุอุปกรณ์">
+                     onclick="selectRoom(this, '1308')" role="button" tabindex="0">
                     <span class="card-badge">CCE/EL</span>
-                    <div class="card-icon"><i class="fas fa-toolbox" aria-hidden="true"></i></div>
+                    <div class="card-icon"><i class="fas fa-toolbox"></i></div>
                     <div class="card-number">1308</div>
                     <div class="card-desc">ห้องเก็บวัสดุ อุปกรณ์ และเครื่องมือ</div>
                 </div>
 
-            </div><!-- /rooms-grid -->
-        </div><!-- /grid-wrap -->
+            </div>
+        </div>
 
-        <!-- LEGEND — คำอธิบายสีแต่ละ department -->
         <div class="legend" aria-label="คำอธิบายสีแต่ละสาขา">
             <div class="legend-item">
                 <div class="legend-dot" style="background:var(--col-cce);box-shadow:0 0 5px var(--col-cce)"></div>
@@ -614,174 +152,9 @@
             </div>
         </div>
 
-    </div><!-- /page -->
+    </div>
 
-    <script>
-    /* ════════════════════════════════════════════════════════════
-       selectRoom(cardEl, roomId)
-       เรียกเมื่อผู้ใช้แตะ card ห้องใดห้องหนึ่ง
-       ขั้นตอน:
-         1. ทำให้ card อื่นจางลง (dimmed)
-         2. ไฮไลท์ card ที่เลือก (selected + กะพริบ)
-         3. อัปเดต status bar
-         4. ส่ง API ไปสั่งหุ่นยนต์เดิน
-         5. รอ 800ms แล้วเปลี่ยนหน้าไป /navigate/<roomId>
-    ════════════════════════════════════════════════════════════ */
-    function selectRoom(cardEl, roomId) {
-        const allCards   = document.querySelectorAll('.room-card');
-        const statusBar  = document.getElementById('status-bar');
-        const statusText = document.getElementById('status-text');
-
-        // 1. ทำให้ card ทั้งหมดจางลง + กดไม่ได้
-        allCards.forEach(c => c.classList.add('dimmed'));
-
-        // 2. card ที่เลือก — เอา dimmed ออก + เพิ่ม selected (กะพริบ)
-        cardEl.classList.remove('dimmed');
-        cardEl.classList.add('selected');
-
-        // 3. อัปเดต status bar — เปลี่ยนเป็นสีทอง + ข้อความใหม่
-        statusBar.style.borderColor = 'var(--gold)';
-        statusBar.style.color       = 'var(--gold)';
-        statusBar.querySelector('.status-dot').style.background   = 'var(--gold)';
-        statusBar.querySelector('.status-dot').style.boxShadow    = '0 0 8px var(--gold)';
-        statusText.innerHTML = `กำลังเตรียมนำทางไปห้อง <strong>${roomId.toUpperCase()}</strong>...`;
-
-        // 4. ส่ง API ไปสั่งหุ่นยนต์เดิน
-        // roomId.toUpperCase() — แปลงเป็น uppercase ก่อนส่ง
-        // เพราะ ROOM_TO_NODE ใน app.py ใช้ key เป็น uppercase ("1303A", "1304B")
-        fetch('/api/move_to/' + roomId.toUpperCase())
-            .then(res => {
-                // เช็คว่า HTTP status เป็น 200-299 หรือเปล่า
-                // ถ้าไม่ใช่ (เช่น 404 ห้องไม่เจอ, 500 server error) ให้ throw error
-                if (!res.ok) throw new Error('HTTP ' + res.status);
-                return res.json();
-            })
-            .then(data => {
-                // เช็คว่า backend ตอบ status: "moving" หรือเปล่า
-                if (data.status === 'moving' || data.status === 'ok') {
-                    // สำเร็จ: รอ 800ms ให้ผู้ใช้เห็น feedback แล้วเปลี่ยนหน้า
-                    setTimeout(() => {
-                        window.location.href = '/navigate/' + roomId;
-                    }, 800);
-                } else {
-                    // backend ตอบกลับแต่มี error message
-                    throw new Error(data.msg || 'Unknown error');
-                }
-            })
-            .catch(err => {
-                // error: network ล้ม หรือ backend error
-                // คืนค่าทุกอย่างกลับมาให้กดใหม่ได้
-                console.error('API Error:', err);
-                allCards.forEach(c => c.classList.remove('dimmed', 'selected'));
-                statusBar.style.borderColor = 'rgba(255,82,82,0.5)';
-                statusBar.style.color       = '#ff8a80';
-                statusText.innerHTML = '⚠ เชื่อมต่อไม่ได้ กรุณาลองใหม่อีกครั้ง';
-                // รีเซ็ต status bar + style หลัง 3 วินาที
-                setTimeout(() => {
-                    statusBar.removeAttribute('style');
-                    statusText.innerHTML = 'กรุณาเลือกห้องที่ต้องการให้หุ่นยนต์นำทาง';
-                }, 3000);
-            });
-    }
-
-    /* ════════════════════════════════════════════════════════════
-       Keyboard support — กด Enter หรือ Space บน card ได้เหมือนกัน
-       รองรับ accessibility ตาม UI/UX Pro Max §1
-    ════════════════════════════════════════════════════════════ */
-    document.querySelectorAll('.room-card').forEach(card => {
-        card.addEventListener('keydown', e => {
-            if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                card.click();
-            }
-        });
-    });
-
-    function confirmResetHome() {
-    Swal.fire({
-        title: 'ยืนยันการ Reset System?',
-        text: "หุ่นยนต์จะกลับไปเริ่มทำ Home Sequence (ตั้งค่าจุดเริ่มต้นใหม่)",
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#ff2e63', // สีปุ่มยืนยันตามสีปุ่ม Reset
-        cancelButtonColor: '#d33',
-        confirmButtonText: 'ยืนยัน',
-        cancelButtonText: 'ยกเลิก',
-        // ปรับแต่งสไตล์ SweetAlert ให้เข้ากับธีม (ตัวเลือกเสริม)
-        background: '#1a1a1a', // สีพื้นหลังเข้ม
-        color: '#ffffff', // สีตัวอักษรขาว
-        customClass: {
-            popup: 'cyber-popup' // สำหรับกำหนดสไตล์ CSS เพิ่มเติมถ้าต้องการ
-        }
-    }).then((result) => {
-        if (result.isConfirmed) {
-            // ถ้าผู้ใช้ยืนยัน ให้ส่งคำสั่ง Reset ไปยัง API
-            triggerResetHome();
-        }
-    });
-}
-
-    function triggerResetHome() {
-        // แสดง loading animation ระหว่างรอ
-        Swal.fire({
-            title: 'กำลังส่งคำสั่ง...',
-            html: 'กรุณารอสักครู่',
-            allowOutsideClick: false,
-            didOpen: () => {
-                Swal.showLoading()
-            }
-        });
-
-        fetch('/api/reset-home', { 
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-        })
-        .then(response => response.json())
-        .then(data => {
-            Swal.close(); // ปิด loading
-            
-            if (data.status === 'success') {
-                Swal.fire({
-                    title: 'เริ่มระบบ Reset Home แล้ว',
-                    text: data.message,
-                    icon: 'success',
-                    timer: 3000, // ปิดอัตโนมัติใน 3 วินาที
-                    showConfirmButton: false,
-                    background: '#1a1a1a',
-                    color: '#ffffff',
-                }).then(() => {
-                    // ส่งกลับหน้าแรกเพื่อเริ่มใหม่
-                    window.location.href = "/";
-                });
-            } else {
-                Swal.fire({
-                    title: 'เกิดข้อผิดพลาด!',
-                    text: data.message,
-                    icon: 'error',
-                    background: '#1a1a1a',
-                    color: '#ffffff',
-                });
-            }
-        })
-        .catch(error => {
-            Swal.close(); // ปิด loading
-            console.error('Error:', error);
-            Swal.fire({
-                title: 'ผิดพลาด!',
-                text: 'ไม่สามารถติดต่อหุ่นยนต์ได้ กรุณาตรวจสอบการเชื่อมต่อ',
-                icon: 'error',
-                background: '#1a1a1a',
-                color: '#ffffff',
-            });
-        });
-    }
-    /* ════════════════════════════════════════════════════════════
-       ป้องกัน pinch zoom บน touch screen (สำหรับ Kiosk)
-    ════════════════════════════════════════════════════════════ */
-    document.addEventListener('touchstart', e => {
-        if (e.touches.length > 1) e.preventDefault();
-    }, { passive: false });
-
-    </script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="{{ url_for('static', filename='js/room.js') }}"></script>
 </body>
 </html>
