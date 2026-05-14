@@ -3,7 +3,7 @@ from flask import Flask, render_template, request, jsonify
 import requests
 
 # --- [CONFIG & DATA] ---
-ROBOT_IP = "172.83.9.204"
+ROBOT_IP = "172.83.9.254"
 
 # เพิ่มตัวแปรเก็บตำแหน่งล่าสุดในฝั่ง Windows ด้วย (ถ้าต้องการ)
 last_known_node = 1 
