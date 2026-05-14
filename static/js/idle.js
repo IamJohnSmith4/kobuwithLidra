@@ -8,6 +8,9 @@ function resetTimer() {
         window.location.href = "/idle"; // สมมติว่าตั้ง route ใน app.py ไว้แบบนี้
     }, IDLE_TIME_LIMIT);
 }
+function wakeUp() {
+    window.location.href = '/';
+}
 
 // ตรวจจับการขยับเมาส์หรือแตะหน้าจอ
 window.onload = resetTimer;
