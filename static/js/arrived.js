@@ -88,17 +88,21 @@ function returnToBase() {
         icon: 'question',
         showCancelButton: true,
         confirmButtonColor: '#00E5FF',
-        cancelButtonColor:  '#555',
+        cancelButtonColor: '#555',
         confirmButtonText: '<i class="fas fa-rotate-left"></i> ยืนยัน',
-        cancelButtonText:  'ยกเลิก',
+        cancelButtonText: 'ยกเลิก',
         background: '#0D1526', color: '#ffffff',
         backdrop: 'rgba(0,0,0,0.8)',
     }).then(result => {
         if (result.isConfirmed) {
-            fetch('/api/move_to/Home')
+            // ✅ Send robot to node 1, then go to navigating page for HOME
+            fetch('/api/move_to/HOME')
                 .catch(() => {})
-                .finally(() => { window.location.href = '/'; });
+                .finally(() => {
+                    window.location.href = '/navigate/HOME';  // ← shows progress
+                });
         } else {
+            // Resume countdown
             countVal = 30;
             countEl.parentElement.innerHTML =
                 `กลับหน้าหลักอัตโนมัติใน <span id="count">30</span> วินาที`;

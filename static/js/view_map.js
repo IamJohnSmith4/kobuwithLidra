@@ -16,6 +16,7 @@ const NODE_POS = {
 };
 
 const ROOM_TO_NODE = {
+    "HOME":1,
     "1301":2, "1302":3, "1303A":4, "1303B":5,
     "1304A":6, "1304B":7, "1305":8, "1306":9,
     "1307":10, "1308":11
@@ -70,9 +71,6 @@ function moveRobot(fromNode, toNode, pct) {
 }
 
 // ── Poll status ───────────────────────────────────────────────────
-let simNode = 1;
-let simPct  = 0;
-
 function updateMap() {
     fetch('/api/status')
         .then(r => { if (!r.ok) throw new Error(); return r.json(); })
@@ -97,18 +95,10 @@ function updateMap() {
             }
         })
         .catch(() => {
-            simulateMove();
-            document.getElementById('status-text').textContent = 'ไม่พบการเชื่อมต่อ — แสดงการจำลอง';
+            document.getElementById('status-text').textContent = 'ไม่พบการเชื่อมต่อกับหุ่นยนต์';
+            document.getElementById('live-dot').style.background = '#FF5252';
+            document.getElementById('live-dot').style.boxShadow  = '0 0 6px #FF5252';
         });
-}
-
-function simulateMove() {
-    if (!TARGET_NODE) return;
-    simPct += 3;
-    if (simPct > 100) simPct = 100;
-    const fromNode = Math.max(1, Math.floor(simNode));
-    moveRobot(fromNode, TARGET_NODE, simPct);
-    if (simPct >= 100) simNode = TARGET_NODE;
 }
 
 setInterval(updateMap, 2000);

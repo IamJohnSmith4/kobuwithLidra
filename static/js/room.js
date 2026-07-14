@@ -1,4 +1,20 @@
+const AVAILABLE_ROOMS = new Set(['1301', '1302']);
+
 function selectRoom(cardEl, roomId) {
+    const normalizedRoomId = roomId.toUpperCase();
+
+    if (!AVAILABLE_ROOMS.has(normalizedRoomId)) {
+        Swal.fire({
+            title: 'ห้องนี้ยังไม่พร้อมใช้งาน',
+            text: 'ตอนนี้ระบบนำทางเปิดให้ใช้เฉพาะห้องที่ตั้งค่า node จริงแล้ว',
+            icon: 'info',
+            confirmButtonText: 'ตกลง',
+            background: '#1a1a1a',
+            color: '#ffffff',
+        });
+        return;
+    }
+
     const allCards   = document.querySelectorAll('.room-card');
     const statusBar  = document.getElementById('status-bar');
     const statusText = document.getElementById('status-text');
@@ -11,17 +27,19 @@ function selectRoom(cardEl, roomId) {
     statusBar.style.color       = 'var(--gold)';
     statusBar.querySelector('.status-dot').style.background = 'var(--gold)';
     statusBar.querySelector('.status-dot').style.boxShadow  = '0 0 8px var(--gold)';
-    statusText.innerHTML = `กำลังเตรียมนำทางไปห้อง <strong>${roomId.toUpperCase()}</strong>...`;
+    statusText.innerHTML = `กำลังเตรียมนำทางไปห้อง <strong>${normalizedRoomId}</strong>...`;
 
-    fetch('/api/move_to/' + roomId.toUpperCase())
+    fetch('/api/move_to/' + normalizedRoomId)
         .then(res => {
-            if (!res.ok) throw new Error('HTTP ' + res.status);
-            return res.json();
+            return res.json().then(data => {
+                if (!res.ok) throw new Error(data.msg || ('HTTP ' + res.status));
+                return data;
+            });
         })
         .then(data => {
-            if (data.status === 'moving' || data.status === 'ok') {
+            if (data.status === 'accepted' || data.status === 'moving' || data.status === 'ok') {
                 setTimeout(() => {
-                    window.location.href = '/navigate/' + roomId;
+                    window.location.href = '/navigate/' + normalizedRoomId;
                 }, 800);
             } else {
                 throw new Error(data.msg || 'Unknown error');
@@ -32,7 +50,7 @@ function selectRoom(cardEl, roomId) {
             allCards.forEach(c => c.classList.remove('dimmed', 'selected'));
             statusBar.style.borderColor = 'rgba(255,82,82,0.5)';
             statusBar.style.color       = '#ff8a80';
-            statusText.innerHTML = '⚠ เชื่อมต่อไม่ได้ กรุณาลองใหม่อีกครั้ง';
+            statusText.textContent = '⚠ ' + err.message;
             setTimeout(() => {
                 statusBar.removeAttribute('style');
                 statusText.innerHTML = 'กรุณาเลือกห้องที่ต้องการให้หุ่นยนต์นำทาง';
@@ -40,9 +58,21 @@ function selectRoom(cardEl, roomId) {
         });
 }
 
+document.querySelectorAll('.room-card').forEach(card => {
+    const match = card.getAttribute('onclick')?.match(/'([^']+)'/);
+    const roomId = match?.[1]?.toUpperCase();
+
+    if (roomId && !AVAILABLE_ROOMS.has(roomId)) {
+        card.classList.add('unavailable');
+        card.setAttribute('aria-disabled', 'true');
+        card.setAttribute('title', 'ยังไม่พร้อมใช้งาน');
+    }
+});
+
 // Keyboard support
 document.querySelectorAll('.room-card').forEach(card => {
     card.addEventListener('keydown', e => {
+        if (card.classList.contains('unavailable')) return;
         if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
             card.click();

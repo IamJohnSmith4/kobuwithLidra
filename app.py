@@ -1,10 +1,9 @@
-import threading
 from flask import Flask, render_template, request, jsonify
 import requests
 
 # --- [CONFIG & DATA] ---
-ROBOT_IP = "172.83.10.115"
-
+ROBOT_IP = "172.83.10.127"
+MOCK_MODE = True
 # เพิ่มตัวแปรเก็บตำแหน่งล่าสุดในฝั่ง Windows ด้วย (ถ้าต้องการ)
 last_known_node = 1 
 
@@ -154,38 +153,63 @@ def api_move_to(room_id):
     global last_known_node
     rid = room_id.upper()
     node_id = ROOM_TO_NODE.get(rid)
-
+    
     if not node_id:
         return jsonify({"status": "error", "msg": "Room not found"}), 404
+    
+    if MOCK_MODE:
+        return jsonify({
+        "status": "accepted",
+        "target_node": node_id,
+        "robot": {
+            "mock": True
+        }
+    })
 
-    def call_robot():
-        global last_known_node
+    try:
+        # ถาม Ubuntu ก่อนว่าตอนนี้อยู่ที่ไหน
+        # ป้องกันกรณี robot_server.py restart แล้ว last_known_node ไม่ตรง
         try:
-            # ถาม Ubuntu ก่อนว่าตอนนี้อยู่ที่ไหน
-            # ป้องกันกรณี robot_server.py restart แล้ว last_known_node ไม่ตรง
-            try:
-                status_res = requests.get(f"http://{ROBOT_IP}:5000/status", timeout=2)
-                if status_res.status_code == 200:
-                    actual_node = status_res.json().get('current_location', last_known_node)
-                    last_known_node = int(actual_node)
-                    print(f"[SYNC] actual node from robot: {last_known_node}")
-            except:
-                print(f"[SYNC] Cannot reach robot, using last_known_node: {last_known_node}")
-
-            # ส่งคำสั่งเดิน
-            res = requests.post(
-                f"http://{ROBOT_IP}:5000/command",
-                json={"start": last_known_node, "target": node_id},
-                timeout=5
-            )
-            if res.status_code == 200:
-                # last_known_node = node_id
-                print(f"[ROBOT] Moving start={last_known_node} target={node_id}")
+            status_res = requests.get(f"http://{ROBOT_IP}:5000/status", timeout=2)
+            if status_res.status_code == 200:
+                actual_node = status_res.json().get('current_location', last_known_node)
+                last_known_node = int(actual_node)
+                print(f"[SYNC] actual node from robot: {last_known_node}")
         except Exception as e:
-            print(f"[ROBOT] Connection Error: {e}")
+            print(f"[SYNC] Cannot reach robot status: {e}")
 
-    threading.Thread(target=call_robot, daemon=True).start()
-    return jsonify({"status": "moving", "target_node": node_id})
+        res = requests.post(
+            f"http://{ROBOT_IP}:5000/command",
+            json={"start": last_known_node, "target": node_id},
+            timeout=5
+        )
+
+        if res.status_code != 200:
+            try:
+                details = res.json()
+            except ValueError:
+                details = {"message": res.text}
+            return jsonify({
+                "status": "error",
+                "msg": details.get("message", "Robot rejected the command"),
+                "details": details
+            }), res.status_code
+
+        data = res.json()
+        print(f"[ROBOT] Command accepted start={last_known_node} target={node_id}")
+        return jsonify({
+            "status": "accepted",
+            "target_node": node_id,
+            "robot": data
+        })
+    except Exception as e:
+        print(f"[ROBOT] Connection Error: {e}")
+        return jsonify({
+            "status": "error",
+            "msg": "Cannot connect to robot server",
+            "details": str(e)
+        }), 502
+    
 
 @app.route('/stop')
 def stop_robot():
@@ -213,6 +237,7 @@ def api_status():
 # เพิ่มลงใน app.py บน Windows
 @app.route('/api/reset-home', methods=['POST'])
 def proxy_reset_home():
+    global last_known_node
     try:
         # ส่งคำสั่งต่อไปยัง Ubuntu
         response = requests.post(f"http://{ROBOT_IP}:5000/command/reset-home", timeout=5)

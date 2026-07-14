@@ -222,6 +222,31 @@ html, body {
 }
 .room-card:hover .card-icon { box-shadow: 0 0 16px var(--accent-color); }
 
+.room-card.unavailable {
+    opacity: 0.35;
+    cursor: not-allowed;
+    filter: grayscale(0.6);
+}
+.room-card.unavailable:hover {
+    transform: none;
+    border-color: rgba(255,255,255,0.06);
+    box-shadow: none;
+    background: rgba(13,21,38,0.8);
+}
+.room-card.unavailable::after {
+    content: 'COMING SOON';
+    position: absolute;
+    inset: auto 12px 12px 12px;
+    border-radius: 6px;
+    padding: 4px 6px;
+    background: rgba(0,0,0,0.55);
+    color: rgba(255,255,255,0.72);
+    font-family: 'Orbitron', monospace;
+    font-size: 0.58rem;
+    letter-spacing: 1px;
+    opacity: 1;
+}
+
 .card-number {
     font-family: 'Orbitron', monospace;
     font-size: clamp(1.4rem, 3vw, 2rem);
